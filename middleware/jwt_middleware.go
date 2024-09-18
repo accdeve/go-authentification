@@ -43,7 +43,6 @@ func JWTMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Check if token is about to expire and refresh it
 		if time.Until(claims.ExpiresAt.Time) < 15*time.Minute {
 			newToken, err := auth.GenerateJWT(claims.Email)
 			if err != nil {
@@ -52,7 +51,6 @@ func JWTMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// Set the new token in Authorization header
 			c.Header("Authorization", "Bearer "+newToken)
 		}
 
