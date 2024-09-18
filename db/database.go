@@ -10,6 +10,11 @@ import (
 
 var DB *sql.DB
 
+func FuncDB() {
+	ConnectDB()
+	MigrateDB()
+}
+
 func ConnectDB() {
 	dsn := "root:@/belajar"
 	db, err := sql.Open("mysql", dsn)
@@ -17,10 +22,10 @@ func ConnectDB() {
 		panic(err)
 	}
 	err = db.Ping()
-	if err != nil{
+	if err != nil {
 		log.Fatal("Error connecting database", err.Error())
-	}else{
-		fmt.Println("Connection to the mysql")	
+	} else {
+		fmt.Println("Connection to the mysql")
 	}
 
 	DB = db
