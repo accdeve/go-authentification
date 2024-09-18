@@ -5,11 +5,11 @@ import (
 	"crud_user/db"
 	"crud_user/model"
 	"crud_user/util"
-	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func LoginHandler(c *gin.Context) {
@@ -26,14 +26,12 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	query := "SELECT id, username, email, password FROM users WHERE email = ?"
-	err := db.DB.QueryRow(query, userInput.Email).Scan(&userFromDB.ID, &userFromDB.Username, &userFromDB.Email, &userFromDB.Password)
+	err := db.DB.Where("email = ?", userInput.Email).First(&userFromDB).Error
 	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Email not registrasion"})
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Email not registered"})
 			return
 		}
-
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -50,7 +48,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login Successfull", "token": tokenString})
+	c.JSON(http.StatusOK, gin.H{"message": "Login Successful", "token": tokenString})
 }
 
 func RegistrationHandler(c *gin.Context) {
@@ -67,13 +65,13 @@ func RegistrationHandler(c *gin.Context) {
 	}
 
 	if user.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "email can't empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email can't be empty"})
 		return
 	} else if user.Username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username can't empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username can't be empty"})
 		return
 	} else if user.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "password can't empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "password can't be empty"})
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -81,9 +79,9 @@ func RegistrationHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
+	user.Password = string(hashedPassword)
 
-	query := "INSERT INTO users (username, email, password) VALUES (?,?,?)"
-	_, err = db.DB.Exec(query, user.Username, user.Email, string(hashedPassword))
+	err = db.DB.Create(&user).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add user in database"})
 		return
@@ -93,23 +91,15 @@ func RegistrationHandler(c *gin.Context) {
 }
 
 func GetAllUserHandler(c *gin.Context) {
-	rows, err := db.DB.Query("SELECT id, username, email, password FROM USERS")
+	var users []model.User
+
+	err := db.DB.Find(&users).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to select users from database"})
-	}
-	defer rows.Close()
-
-	var users []model.User
-	for rows.Next() {
-		var user model.User
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.Password); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan user"})
-		}
-		users = append(users, user)
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "success get all user", "data": users})
-
 }
 
 func UpdatePasswordHandler(c *gin.Context) {
@@ -133,26 +123,24 @@ func UpdatePasswordHandler(c *gin.Context) {
 		return
 	}
 
-	query := "UPDATE users SET password = ? WHERE id = ?"
-	_, err = db.DB.Exec(query, string(hashedPassword), id)
+	err = db.DB.Model(&model.User{}).Where("id = ?", id).Update("password", string(hashedPassword)).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Password Update sucesfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 }
 
 func DeleteAllUserHandler(c *gin.Context) {
 	email := c.Query("email")
 
-	if email == ""{
+	if email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter email is required"})
 		return
 	}
 
-	query := "DELETE FROM users WHERE id = ?"
-	_, err := db.DB.Exec(query, email)
+	err := db.DB.Where("email = ?", email).Delete(&model.User{}).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user from the database"})
 		return
