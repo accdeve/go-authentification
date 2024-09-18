@@ -1,14 +1,16 @@
 package db
 
 import (
-	"database/sql"
+	"crud_user/model"
 	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
 
 func FuncDB() {
 	ConnectDB()
@@ -17,11 +19,8 @@ func FuncDB() {
 
 func ConnectDB() {
 	dsn := "root:@/belajar"
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		panic(err)
-	}
-	err = db.Ping()
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+
 	if err != nil {
 		log.Fatal("Error connecting database", err.Error())
 	} else {
@@ -29,24 +28,15 @@ func ConnectDB() {
 	}
 
 	DB = db
+
 }
 
-func MigrateDB() error {
-	query := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		email VARCHAR(100) NOT NULL UNIQUE,
-		username VARCHAR(100) NOT NULL UNIQUE,
-		password VARCHAR(255) NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-	);`
+func MigrateDB(){
+	err := DB.AutoMigrate(&model.User{})
 
-	_, err := DB.Exec(query)
-	if err != nil {
-		return fmt.Errorf("failed to create users table: %w", err)
+	if err != nil{
+		log.Fatal("error migration table user", err.Error())
+	} else{
+		fmt.Println("success migration table")
 	}
-
-	fmt.Println("Database migrated successfully!")
-	return nil
 }
