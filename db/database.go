@@ -18,7 +18,7 @@ func FuncDB() {
 }
 
 func ConnectDB() {
-	dsn := "root:@/belajar"
+	dsn := "root:@/belajar?parseTime=true"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
@@ -28,7 +28,6 @@ func ConnectDB() {
 	}
 
 	DB = db
-
 }
 
 func MigrateDB(){
